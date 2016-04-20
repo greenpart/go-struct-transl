@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/text/language"
 	"reflect"
+	"sync"
 )
 
 // // Use struct field with this type to store translations
@@ -64,9 +65,34 @@ func indirectType(t reflect.Type) reflect.Type {
 	return t
 }
 
-func getStructMeta(target interface{}) *structMeta {
-	result := structMeta{[]fieldMeta{}}
+type structsMetaCache struct {
+	metas map[reflect.Type]*structMeta
+	mutex sync.RWMutex
+}
+
+var metas = structsMetaCache{map[reflect.Type]*structMeta{}, sync.RWMutex{}}
+
+func (c *structsMetaCache) getStructMeta(target interface{}) *structMeta {
 	typ := indirectType(reflect.TypeOf(target))
+
+	c.mutex.RLock()
+	meta, ok := c.metas[typ]
+	c.mutex.RUnlock()
+
+	if ok {
+		return meta
+	}
+
+	c.mutex.Lock()
+	meta = buildStructMeta(typ)
+	c.metas[typ] = meta
+	c.mutex.Unlock()
+
+	return meta
+}
+
+func buildStructMeta(typ reflect.Type) *structMeta {
+	result := structMeta{[]fieldMeta{}}
 
 	for i := 0; i < typ.NumField(); i++ {
 		fld := typ.Field(i)
@@ -105,7 +131,7 @@ func TranslateOne(ctx context.Context, target interface{}) {
 		targetLanguages = []language.Tag{language.English}
 	}
 
-	for _, trF := range getStructMeta(target).fields {
+	for _, trF := range metas.getStructMeta(target).fields {
 		f := structValue.FieldByName(trF.name)
 		if f.IsValid() && f.CanSet() && f.Kind() == reflect.String {
 			translateField(f, trF.key, translations, targetLanguages)

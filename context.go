@@ -11,13 +11,13 @@ const (
 	acceptedLanguagesKey contextKey = iota
 )
 
-// NewContextWithAcceptedLanguages returns context with accepted languages information
+// NewContext returns context with accepted languages information
 // langs is a slice of language.Tag
 func NewContext(ctx context.Context, langs []language.Tag) context.Context {
 	return context.WithValue(ctx, acceptedLanguagesKey, langs)
 }
 
-// AcceptedLanguagesFromContext returns accepted languages from context
+// FromContext returns accepted languages from context
 func FromContext(ctx context.Context) ([]language.Tag, bool) {
 	langs, ok := ctx.Value(acceptedLanguagesKey).([]language.Tag)
 	return langs, ok

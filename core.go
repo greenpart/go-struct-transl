@@ -72,7 +72,7 @@ func TranslateOne(ctx context.Context, target interface{}, fieldsProvider Transl
 		return
 	}
 
-	targetLanguages, ok := AcceptedLanguagesFromContext(ctx)
+	targetLanguages, ok := FromContext(ctx)
 	if !ok || len(targetLanguages) == 0 {
 		targetLanguages = []language.Tag{language.English}
 	}

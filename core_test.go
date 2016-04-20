@@ -65,7 +65,7 @@ func fixedLangTranslator(in TrType) TrType {
 	return out
 }
 
-var enCtx = NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("en")})
+var enCtx = NewContext(context.Background(), []language.Tag{language.Make("en")})
 
 func realTranslator(in TrType) TrType {
 	TranslateOne(enCtx, &in, TrTypeTrProvider{})
@@ -94,7 +94,7 @@ func genTrObj() TrType {
 }
 
 func TestPerfectCase(t *testing.T) {
-	enCtx := NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("en")})
+	enCtx := NewContext(context.Background(), []language.Tag{language.Make("en")})
 
 	o := genTrObj()
 	TranslateOne(enCtx, &o, TrTypeTrProvider{})
@@ -104,7 +104,7 @@ func TestPerfectCase(t *testing.T) {
 }
 
 func TestPerfectCaseWithSecondLang(t *testing.T) {
-	ruEnCtx := NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("ru"), language.Make("en")})
+	ruEnCtx := NewContext(context.Background(), []language.Tag{language.Make("ru"), language.Make("en")})
 
 	o := genTrObj()
 	TranslateOne(ruEnCtx, &o, TrTypeTrProvider{})
@@ -114,7 +114,7 @@ func TestPerfectCaseWithSecondLang(t *testing.T) {
 }
 
 func TestMissingFirstLang(t *testing.T) {
-	jaEnCtx := NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("ja"), language.Make("en")})
+	jaEnCtx := NewContext(context.Background(), []language.Tag{language.Make("ja"), language.Make("en")})
 
 	o := genTrObj()
 	TranslateOne(jaEnCtx, &o, TrTypeTrProvider{})
@@ -124,7 +124,7 @@ func TestMissingFirstLang(t *testing.T) {
 }
 
 func TestMissingAllLangsUseEn(t *testing.T) {
-	jaPtCtx := NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("ja"), language.Make("pt")})
+	jaPtCtx := NewContext(context.Background(), []language.Tag{language.Make("ja"), language.Make("pt")})
 
 	o := genTrObj()
 	TranslateOne(jaPtCtx, &o, TrTypeTrProvider{})

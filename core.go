@@ -24,18 +24,6 @@ func (m Translations) Value() (driver.Value, error) {
 	return string(b), nil
 }
 
-// TranslatedField provides mapping
-// for struct field name and translation key
-type TranslatedField interface {
-	StructFieldName() string
-	TranslationKeyName() string
-}
-
-// TranslatedFieldsProvider provides struct's translated fields slice
-type TranslatedFieldsProvider interface {
-	TranslatedFields() []TranslatedField
-}
-
 func translateField(field reflect.Value, name string, translations Translations, targetLanguages []language.Tag) {
 	langs := []language.Tag{}
 	enFound := false
@@ -60,7 +48,47 @@ func translateField(field reflect.Value, name string, translations Translations,
 	field.SetString(translations[effectiveLang.String()][name])
 }
 
-func TranslateOne(ctx context.Context, target interface{}, fieldsProvider TranslatedFieldsProvider) {
+type fieldMeta struct {
+	name string
+	key  string
+}
+
+type structMeta struct {
+	fields []fieldMeta
+}
+
+func indirectType(t reflect.Type) reflect.Type {
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	return t
+}
+
+func getStructMeta(target interface{}) *structMeta {
+	result := structMeta{[]fieldMeta{}}
+	typ := indirectType(reflect.TypeOf(target))
+
+	for i := 0; i < typ.NumField(); i++ {
+		fld := typ.Field(i)
+		tag := fld.Tag.Get("tr")
+
+		if tag != "" {
+			name := fld.Name
+			key := tag
+			if tag == "." {
+				key = name
+			}
+
+			fm := fieldMeta{name, key}
+
+			result.fields = append(result.fields, fm)
+		}
+	}
+
+	return &result
+}
+
+func TranslateOne(ctx context.Context, target interface{}) {
 	structValue := reflect.ValueOf(target)
 	if structValue.Kind() == reflect.Ptr {
 		structValue = structValue.Elem()
@@ -77,18 +105,18 @@ func TranslateOne(ctx context.Context, target interface{}, fieldsProvider Transl
 		targetLanguages = []language.Tag{language.English}
 	}
 
-	for _, trF := range fieldsProvider.TranslatedFields() {
-		f := structValue.FieldByName(trF.StructFieldName())
+	for _, trF := range getStructMeta(target).fields {
+		f := structValue.FieldByName(trF.name)
 		if f.IsValid() && f.CanSet() && f.Kind() == reflect.String {
-			translateField(f, trF.TranslationKeyName(), translations, targetLanguages)
+			translateField(f, trF.key, translations, targetLanguages)
 		}
 	}
 }
 
-func TranslateMany(ctx context.Context, targets interface{}, fieldsProvider TranslatedFieldsProvider) {
+func TranslateMany(ctx context.Context, targets interface{}) {
 	v := reflect.ValueOf(targets)
 
 	for i := 0; i < v.Len(); i++ {
-		TranslateOne(ctx, v.Index(i).Interface(), fieldsProvider)
+		TranslateOne(ctx, v.Index(i).Interface())
 	}
 }

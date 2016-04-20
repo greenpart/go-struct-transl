@@ -8,26 +8,9 @@ import (
 )
 
 type TrType struct {
-	Name         string
-	Element      string
+	Name         string `tr:"name"`
+	Element      string `tr:"element"`
 	Translations Translations
-}
-
-type TrF struct {
-	N string
-	T string
-}
-
-func (t TrF) StructFieldName() string    { return t.N }
-func (t TrF) TranslationKeyName() string { return t.T }
-
-type TrTypeTrProvider struct{}
-
-func (t TrTypeTrProvider) TranslatedFields() []TranslatedField {
-	return []TranslatedField{
-		TrF{"Name", "name"},
-		TrF{"Element", "element"},
-	}
 }
 
 var in = TrType{
@@ -68,7 +51,7 @@ func fixedLangTranslator(in TrType) TrType {
 var enCtx = NewContext(context.Background(), []language.Tag{language.Make("en")})
 
 func realTranslator(in TrType) TrType {
-	TranslateOne(enCtx, &in, TrTypeTrProvider{})
+	TranslateOne(enCtx, &in)
 	return in
 }
 
@@ -97,7 +80,7 @@ func TestPerfectCase(t *testing.T) {
 	enCtx := NewContext(context.Background(), []language.Tag{language.Make("en")})
 
 	o := genTrObj()
-	TranslateOne(enCtx, &o, TrTypeTrProvider{})
+	TranslateOne(enCtx, &o)
 
 	assert.Equal(t, "John", o.Name)
 	assert.Equal(t, "water", o.Element)
@@ -107,7 +90,7 @@ func TestPerfectCaseWithSecondLang(t *testing.T) {
 	ruEnCtx := NewContext(context.Background(), []language.Tag{language.Make("ru"), language.Make("en")})
 
 	o := genTrObj()
-	TranslateOne(ruEnCtx, &o, TrTypeTrProvider{})
+	TranslateOne(ruEnCtx, &o)
 
 	assert.Equal(t, "Джон", o.Name)
 	assert.Equal(t, "вода", o.Element)
@@ -117,7 +100,7 @@ func TestMissingFirstLang(t *testing.T) {
 	jaEnCtx := NewContext(context.Background(), []language.Tag{language.Make("ja"), language.Make("en")})
 
 	o := genTrObj()
-	TranslateOne(jaEnCtx, &o, TrTypeTrProvider{})
+	TranslateOne(jaEnCtx, &o)
 
 	assert.Equal(t, "John", o.Name)
 	assert.Equal(t, "water", o.Element)
@@ -127,7 +110,7 @@ func TestMissingAllLangsUseEn(t *testing.T) {
 	jaPtCtx := NewContext(context.Background(), []language.Tag{language.Make("ja"), language.Make("pt")})
 
 	o := genTrObj()
-	TranslateOne(jaPtCtx, &o, TrTypeTrProvider{})
+	TranslateOne(jaPtCtx, &o)
 
 	assert.Equal(t, "John", o.Name)
 	assert.Equal(t, "water", o.Element)
@@ -135,7 +118,7 @@ func TestMissingAllLangsUseEn(t *testing.T) {
 
 func TestNoLangInContextUseEn(t *testing.T) {
 	o := genTrObj()
-	TranslateOne(context.Background(), &o, TrTypeTrProvider{})
+	TranslateOne(context.Background(), &o)
 
 	assert.Equal(t, "John", o.Name)
 	assert.Equal(t, "water", o.Element)
@@ -144,7 +127,7 @@ func TestNoLangInContextUseEn(t *testing.T) {
 func TestNoEnValuesForDefaltsUsesRu(t *testing.T) {
 	o := genTrObj()
 	o.Translations["en"] = map[string]string{}
-	TranslateOne(context.Background(), &o, TrTypeTrProvider{})
+	TranslateOne(context.Background(), &o)
 
 	assert.Equal(t, "Джон", o.Name)
 	assert.Equal(t, "вода", o.Element)
@@ -153,7 +136,7 @@ func TestNoEnValuesForDefaltsUsesRu(t *testing.T) {
 func TestNoValues(t *testing.T) {
 	o := genTrObj()
 	o.Translations = Translations{}
-	TranslateOne(context.Background(), &o, TrTypeTrProvider{})
+	TranslateOne(context.Background(), &o)
 
 	assert.Equal(t, "", o.Name)
 	assert.Equal(t, "", o.Element)

@@ -6,11 +6,10 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/text/language"
 	"reflect"
-	"sync"
 )
 
-// // Use struct field with this type to store translations
-// // e.g. Translations{"en": map[string]string{"name": "John"}}
+// Use struct field with this type to store translations
+// e.g. Translations{"en": map[string]string{"name": "John"}}
 type Translations map[string]map[string]string
 
 func (m *Translations) Scan(value interface{}) error {

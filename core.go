@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/text/language"
 	"reflect"
+	"sync"
 )
 
 // Use struct field with this type to store translations
@@ -24,11 +25,14 @@ func (m Translations) Value() (driver.Value, error) {
 	return string(b), nil
 }
 
-func translateField(field reflect.Value, name string, translations Translations, targetLanguages []language.Tag) {
+var matchers = map[string]language.Matcher{}
+var matchersMutex sync.RWMutex
+
+func getMatcher(fieldName string, translations Translations) language.Matcher {
 	langs := []language.Tag{}
 	enFound := false
 	for lang, tr := range translations {
-		_, ok := tr[name]
+		_, ok := tr[fieldName]
 		if ok {
 			// First language in langs will be fallback option for matcher
 			// but map order is not stable,
@@ -44,8 +48,32 @@ func translateField(field reflect.Value, name string, translations Translations,
 		langs = append([]language.Tag{language.Make("en")}, langs...)
 	}
 
-	effectiveLang, _, _ := language.NewMatcher(langs).Match(targetLanguages...)
-	field.SetString(translations[effectiveLang.String()][name])
+	langsKey := ""
+	for _, lang := range langs {
+		langsKey += lang.String()
+	}
+
+	matchersMutex.RLock()
+	matcher, ok := matchers[langsKey]
+	matchersMutex.RUnlock()
+
+	if ok {
+		return matcher
+	}
+
+	matcher = language.NewMatcher(langs)
+
+	matchersMutex.Lock()
+	matchers[langsKey] = matcher
+	matchersMutex.Unlock()
+
+	return matcher
+}
+
+func translateField(field reflect.Value, fieldName string, translations Translations, targetLanguages []language.Tag) {
+	matcher := getMatcher(fieldName, translations)
+	effectiveLang, _, _ := matcher.Match(targetLanguages...)
+	field.SetString(translations[effectiveLang.String()][fieldName])
 }
 
 func TranslateOne(ctx context.Context, target interface{}) {

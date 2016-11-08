@@ -11,6 +11,7 @@ type fieldMeta struct {
 }
 
 type structMeta struct {
+	valid  bool
 	fields []fieldMeta
 }
 
@@ -24,7 +25,13 @@ type structMeta struct {
 // 		Second string `tr:"sec"`	// key is set to `sec`
 // }
 func buildStructMeta(typ reflect.Type) *structMeta {
-	result := structMeta{[]fieldMeta{}}
+	result := structMeta{true, []fieldMeta{}}
+
+	_, found := typ.FieldByName("Translations")
+	if !found {
+		result.valid = false
+		return &result
+	}
 
 	for i := 0; i < typ.NumField(); i++ {
 		fld := typ.Field(i)
@@ -41,6 +48,10 @@ func buildStructMeta(typ reflect.Type) *structMeta {
 
 			result.fields = append(result.fields, fm)
 		}
+	}
+
+	if len(result.fields) == 0 {
+		result.valid = false
 	}
 
 	return &result

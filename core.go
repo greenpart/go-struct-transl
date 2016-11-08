@@ -49,14 +49,18 @@ func translateField(field reflect.Value, name string, translations Translations,
 }
 
 func TranslateOne(ctx context.Context, target interface{}) {
+	meta := metas.getStructMeta(target)
+	if len(meta.fields) == 0 {
+		return
+	}
+
 	structValue := reflect.ValueOf(target)
 	if structValue.Kind() == reflect.Ptr {
 		structValue = structValue.Elem()
 	}
 
-	translations := structValue.FieldByName("Translations").Interface().(Translations)
-
-	if len(translations) == 0 {
+	translations, ok := structValue.FieldByName("Translations").Interface().(Translations)
+	if !ok || len(translations) == 0 {
 		return
 	}
 
@@ -65,7 +69,7 @@ func TranslateOne(ctx context.Context, target interface{}) {
 		targetLanguages = []language.Tag{language.English}
 	}
 
-	for _, trF := range metas.getStructMeta(target).fields {
+	for _, trF := range meta.fields {
 		f := structValue.FieldByName(trF.name)
 		if f.IsValid() && f.CanSet() && f.Kind() == reflect.String {
 			translateField(f, trF.key, translations, targetLanguages)

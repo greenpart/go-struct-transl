@@ -141,3 +141,28 @@ func TestNoValues(t *testing.T) {
 	assert.Equal(t, "", o.Name)
 	assert.Equal(t, "", o.Element)
 }
+
+// Edge cases for missing/invalid `Translations` field
+
+type NoTranslationsFieldType struct {
+	Name string `tr:"name"`
+}
+
+func TestNoTranslationsField(t *testing.T) {
+	o := NoTranslationsFieldType{}
+	TranslateOne(context.Background(), &o)
+
+	assert.Equal(t, "", o.Name)
+}
+
+type OtherTranslationsFieldType struct {
+	Name         string `tr:"name"`
+	Translations int
+}
+
+func TestOtherTranslationsField(t *testing.T) {
+	o := OtherTranslationsFieldType{}
+	TranslateOne(context.Background(), &o)
+
+	assert.Equal(t, "", o.Name)
+}

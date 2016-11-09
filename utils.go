@@ -5,8 +5,8 @@ import (
 )
 
 func indirectType(t reflect.Type) reflect.Type {
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
+	if t.Kind() == reflect.Ptr {
+		return t.Elem()
 	}
 	return t
 }

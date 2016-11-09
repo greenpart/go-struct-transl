@@ -40,12 +40,12 @@ func getMatcher(fieldName string, translations Translations) language.Matcher {
 			if lang == "en" {
 				enFound = true
 			} else {
-				langs = append(langs, language.Make(lang))
+				langs = append(langs, *getTagByString(lang))
 			}
 		}
 	}
 	if enFound {
-		langs = append([]language.Tag{language.Make("en")}, langs...)
+		langs = append([]language.Tag{*getTagByString("en")}, langs...)
 	}
 
 	langsKey := ""
@@ -74,6 +74,27 @@ func translateField(field reflect.Value, fieldName string, translations Translat
 	matcher := getMatcher(fieldName, translations)
 	effectiveLang, _, _ := matcher.Match(targetLanguages...)
 	field.SetString(translations[effectiveLang.String()][fieldName])
+}
+
+var tags = map[string]language.Tag{}
+var tagsMutex sync.RWMutex
+
+func getTagByString(s string) *language.Tag {
+	tagsMutex.RLock()
+	tag, ok := tags[s]
+	tagsMutex.RUnlock()
+
+	if ok {
+		return &tag
+	}
+
+	tag = language.Make(s)
+
+	tagsMutex.Lock()
+	tags[s] = tag
+	tagsMutex.Unlock()
+
+	return &tag
 }
 
 func TranslateOne(ctx context.Context, target interface{}) {

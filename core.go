@@ -1,4 +1,8 @@
-package godatai18n
+/*
+Package transl translates struct fields and store translations
+in the same struct.
+*/
+package transl
 
 import (
 	"database/sql/driver"
@@ -12,20 +16,23 @@ import (
 var defaultLanguageString = "en"
 var defaultLanguageTag = language.English
 
+// SetDefaults redefines default language string and tag
 func SetDefaults(str string, tag language.Tag) {
 	defaultLanguageString = str
 	defaultLanguageTag = tag
 }
 
-// Use struct field with this type to store translations
+// StringTable is a type for struct field to hold translations
 // e.g. Translations{"en": map[string]string{"name": "John"}}
-type Translations map[string]map[string]string
+type StringTable map[string]map[string]string
 
-func (m *Translations) Scan(value interface{}) error {
+// Scan unmarshals translations from JSON
+func (m *StringTable) Scan(value interface{}) error {
 	return json.Unmarshal(value.([]byte), m)
 }
 
-func (m Translations) Value() (driver.Value, error) {
+// Value marshals translations to JSON
+func (m StringTable) Value() (driver.Value, error) {
 	b, err := json.Marshal(m)
 	if err != nil {
 		return nil, err
@@ -33,23 +40,22 @@ func (m Translations) Value() (driver.Value, error) {
 	return string(b), nil
 }
 
-func TranslateOne(ctx context.Context, target interface{}) {
+// Translate fills fields of `target` struct with translated values
+//
+func Translate(ctx context.Context, target interface{}) {
 	meta := metas.getStructMeta(target)
-	if len(meta.fields) == 0 {
+	if !meta.valid {
 		return
 	}
 
-	structValue := reflect.ValueOf(target)
-	if structValue.Kind() == reflect.Ptr {
-		structValue = structValue.Elem()
-	}
+	structValue := reflect.Indirect(reflect.ValueOf(target))
 
-	translations, ok := structValue.FieldByName("Translations").Interface().(Translations)
+	translations, ok := structValue.FieldByName("Translations").Interface().(StringTable)
 	if !ok || len(translations) == 0 {
 		return
 	}
 
-	targetLanguages, ok := FromContext(ctx)
+	targetLanguages, ok := AcceptedLanguagesFromContext(ctx)
 	if !ok || len(targetLanguages) == 0 {
 		targetLanguages = []language.Tag{defaultLanguageTag}
 	}
@@ -62,7 +68,7 @@ func TranslateOne(ctx context.Context, target interface{}) {
 	}
 }
 
-func translateField(field reflect.Value, fieldName string, translations Translations, targetLanguages []language.Tag) {
+func translateField(field reflect.Value, fieldName string, translations StringTable, targetLanguages []language.Tag) {
 	matcher := getMatcher(fieldName, translations)
 	effectiveLang, _, _ := matcher.Match(targetLanguages...)
 	field.SetString(translations[effectiveLang.String()][fieldName])
@@ -71,7 +77,7 @@ func translateField(field reflect.Value, fieldName string, translations Translat
 var matchers = map[string]language.Matcher{}
 var matchersMutex sync.RWMutex
 
-func getMatcher(fieldName string, translations Translations) language.Matcher {
+func getMatcher(fieldName string, translations StringTable) language.Matcher {
 	langs := []language.Tag{}
 	defaultFound := false
 	for lang, tr := range translations {
@@ -132,12 +138,4 @@ func getTagByString(s string) *language.Tag {
 	tagsMutex.Unlock()
 
 	return &tag
-}
-
-func TranslateMany(ctx context.Context, targets interface{}) {
-	v := reflect.ValueOf(targets)
-
-	for i := 0; i < v.Len(); i++ {
-		TranslateOne(ctx, v.Index(i).Interface())
-	}
 }

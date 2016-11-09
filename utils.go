@@ -1,4 +1,4 @@
-package godatai18n
+package transl
 
 import (
 	"reflect"

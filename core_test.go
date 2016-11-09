@@ -1,4 +1,4 @@
-package godatai18n
+package transl
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -10,13 +10,13 @@ import (
 type TrType struct {
 	Name         string `tr:"name"`
 	Element      string `tr:"element"`
-	Translations Translations
+	Translations StringTable
 }
 
 var in = TrType{
 	Name:    "",
 	Element: "",
-	Translations: Translations{
+	Translations: StringTable{
 		"en": map[string]string{
 			"name":    "John",
 			"element": "water",
@@ -48,10 +48,10 @@ func fixedLangTranslator(in TrType) TrType {
 	return out
 }
 
-var enCtx = NewContext(context.Background(), []language.Tag{language.Make("en")})
+var enCtx = NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("en")})
 
 func realTranslator(in TrType) TrType {
-	TranslateOne(enCtx, &in)
+	Translate(enCtx, &in)
 	return in
 }
 
@@ -63,7 +63,7 @@ func genTrObj() TrType {
 	return TrType{
 		Name:    "",
 		Element: "",
-		Translations: Translations{
+		Translations: StringTable{
 			"en": map[string]string{
 				"name":    "John",
 				"element": "water",
@@ -77,40 +77,40 @@ func genTrObj() TrType {
 }
 
 func TestPerfectCase(t *testing.T) {
-	enCtx := NewContext(context.Background(), []language.Tag{language.Make("en")})
+	enCtx := NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("en")})
 
 	o := genTrObj()
-	TranslateOne(enCtx, &o)
+	Translate(enCtx, &o)
 
 	assert.Equal(t, "John", o.Name)
 	assert.Equal(t, "water", o.Element)
 }
 
 func TestPerfectCaseWithSecondLang(t *testing.T) {
-	ruEnCtx := NewContext(context.Background(), []language.Tag{language.Make("ru"), language.Make("en")})
+	ruEnCtx := NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("ru"), language.Make("en")})
 
 	o := genTrObj()
-	TranslateOne(ruEnCtx, &o)
+	Translate(ruEnCtx, &o)
 
 	assert.Equal(t, "Джон", o.Name)
 	assert.Equal(t, "вода", o.Element)
 }
 
 func TestMissingFirstLang(t *testing.T) {
-	jaEnCtx := NewContext(context.Background(), []language.Tag{language.Make("ja"), language.Make("en")})
+	jaEnCtx := NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("ja"), language.Make("en")})
 
 	o := genTrObj()
-	TranslateOne(jaEnCtx, &o)
+	Translate(jaEnCtx, &o)
 
 	assert.Equal(t, "John", o.Name)
 	assert.Equal(t, "water", o.Element)
 }
 
 func TestMissingAllLangsUseEn(t *testing.T) {
-	jaPtCtx := NewContext(context.Background(), []language.Tag{language.Make("ja"), language.Make("pt")})
+	jaPtCtx := NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("ja"), language.Make("pt")})
 
 	o := genTrObj()
-	TranslateOne(jaPtCtx, &o)
+	Translate(jaPtCtx, &o)
 
 	assert.Equal(t, "John", o.Name)
 	assert.Equal(t, "water", o.Element)
@@ -118,7 +118,7 @@ func TestMissingAllLangsUseEn(t *testing.T) {
 
 func TestNoLangInContextUseEn(t *testing.T) {
 	o := genTrObj()
-	TranslateOne(context.Background(), &o)
+	Translate(context.Background(), &o)
 
 	assert.Equal(t, "John", o.Name)
 	assert.Equal(t, "water", o.Element)
@@ -127,7 +127,7 @@ func TestNoLangInContextUseEn(t *testing.T) {
 func TestNoEnValuesForDefaltsUsesRu(t *testing.T) {
 	o := genTrObj()
 	o.Translations["en"] = map[string]string{}
-	TranslateOne(context.Background(), &o)
+	Translate(context.Background(), &o)
 
 	assert.Equal(t, "Джон", o.Name)
 	assert.Equal(t, "вода", o.Element)
@@ -135,8 +135,8 @@ func TestNoEnValuesForDefaltsUsesRu(t *testing.T) {
 
 func TestNoValues(t *testing.T) {
 	o := genTrObj()
-	o.Translations = Translations{}
-	TranslateOne(context.Background(), &o)
+	o.Translations = StringTable{}
+	Translate(context.Background(), &o)
 
 	assert.Equal(t, "", o.Name)
 	assert.Equal(t, "", o.Element)
@@ -146,7 +146,7 @@ func TestOtherDefaults(t *testing.T) {
 	SetDefaults("ru", language.Make("ru"))
 
 	o := genTrObj()
-	TranslateOne(context.Background(), &o)
+	Translate(context.Background(), &o)
 
 	assert.Equal(t, "Джон", o.Name)
 	assert.Equal(t, "вода", o.Element)
@@ -162,7 +162,7 @@ type NoTranslationsFieldType struct {
 
 func TestNoTranslationsField(t *testing.T) {
 	o := NoTranslationsFieldType{}
-	TranslateOne(context.Background(), &o)
+	Translate(context.Background(), &o)
 
 	assert.Equal(t, "", o.Name)
 }
@@ -174,19 +174,19 @@ type OtherTranslationsFieldType struct {
 
 func TestOtherTranslationsField(t *testing.T) {
 	o := OtherTranslationsFieldType{}
-	TranslateOne(context.Background(), &o)
+	Translate(context.Background(), &o)
 
 	assert.Equal(t, "", o.Name)
 }
 
 type OtherValueFieldType struct {
 	Num          int `tr:"num"`
-	Translations Translations
+	Translations StringTable
 }
 
 func TestOtherValueField(t *testing.T) {
 	o := OtherValueFieldType{}
-	TranslateOne(context.Background(), &o)
+	Translate(context.Background(), &o)
 
 	assert.Equal(t, 0, o.Num)
 }

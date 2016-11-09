@@ -25,6 +25,41 @@ func (m Translations) Value() (driver.Value, error) {
 	return string(b), nil
 }
 
+func TranslateOne(ctx context.Context, target interface{}) {
+	meta := metas.getStructMeta(target)
+	if len(meta.fields) == 0 {
+		return
+	}
+
+	structValue := reflect.ValueOf(target)
+	if structValue.Kind() == reflect.Ptr {
+		structValue = structValue.Elem()
+	}
+
+	translations, ok := structValue.FieldByName("Translations").Interface().(Translations)
+	if !ok || len(translations) == 0 {
+		return
+	}
+
+	targetLanguages, ok := FromContext(ctx)
+	if !ok || len(targetLanguages) == 0 {
+		targetLanguages = []language.Tag{language.English}
+	}
+
+	for _, trF := range meta.fields {
+		f := structValue.FieldByName(trF.name)
+		if f.IsValid() && f.CanSet() && f.Kind() == reflect.String {
+			translateField(f, trF.key, translations, targetLanguages)
+		}
+	}
+}
+
+func translateField(field reflect.Value, fieldName string, translations Translations, targetLanguages []language.Tag) {
+	matcher := getMatcher(fieldName, translations)
+	effectiveLang, _, _ := matcher.Match(targetLanguages...)
+	field.SetString(translations[effectiveLang.String()][fieldName])
+}
+
 var matchers = map[string]language.Matcher{}
 var matchersMutex sync.RWMutex
 
@@ -70,12 +105,6 @@ func getMatcher(fieldName string, translations Translations) language.Matcher {
 	return matcher
 }
 
-func translateField(field reflect.Value, fieldName string, translations Translations, targetLanguages []language.Tag) {
-	matcher := getMatcher(fieldName, translations)
-	effectiveLang, _, _ := matcher.Match(targetLanguages...)
-	field.SetString(translations[effectiveLang.String()][fieldName])
-}
-
 var tags = map[string]language.Tag{}
 var tagsMutex sync.RWMutex
 
@@ -95,35 +124,6 @@ func getTagByString(s string) *language.Tag {
 	tagsMutex.Unlock()
 
 	return &tag
-}
-
-func TranslateOne(ctx context.Context, target interface{}) {
-	meta := metas.getStructMeta(target)
-	if len(meta.fields) == 0 {
-		return
-	}
-
-	structValue := reflect.ValueOf(target)
-	if structValue.Kind() == reflect.Ptr {
-		structValue = structValue.Elem()
-	}
-
-	translations, ok := structValue.FieldByName("Translations").Interface().(Translations)
-	if !ok || len(translations) == 0 {
-		return
-	}
-
-	targetLanguages, ok := FromContext(ctx)
-	if !ok || len(targetLanguages) == 0 {
-		targetLanguages = []language.Tag{language.English}
-	}
-
-	for _, trF := range meta.fields {
-		f := structValue.FieldByName(trF.name)
-		if f.IsValid() && f.CanSet() && f.Kind() == reflect.String {
-			translateField(f, trF.key, translations, targetLanguages)
-		}
-	}
 }
 
 func TranslateMany(ctx context.Context, targets interface{}) {

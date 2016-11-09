@@ -142,6 +142,18 @@ func TestNoValues(t *testing.T) {
 	assert.Equal(t, "", o.Element)
 }
 
+func TestOtherDefaults(t *testing.T) {
+	SetDefaults("ru", language.Make("ru"))
+
+	o := genTrObj()
+	TranslateOne(context.Background(), &o)
+
+	assert.Equal(t, "Джон", o.Name)
+	assert.Equal(t, "вода", o.Element)
+
+	SetDefaults(defaultLanguageString, defaultLanguageTag)
+}
+
 // Edge cases for missing/invalid `Translations` and translated field
 
 type NoTranslationsFieldType struct {

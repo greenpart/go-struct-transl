@@ -9,6 +9,14 @@ import (
 	"sync"
 )
 
+var defaultLanguageString = "en"
+var defaultLanguageTag = language.English
+
+func SetDefaults(str string, tag language.Tag) {
+	defaultLanguageString = str
+	defaultLanguageTag = tag
+}
+
 // Use struct field with this type to store translations
 // e.g. Translations{"en": map[string]string{"name": "John"}}
 type Translations map[string]map[string]string
@@ -43,7 +51,7 @@ func TranslateOne(ctx context.Context, target interface{}) {
 
 	targetLanguages, ok := FromContext(ctx)
 	if !ok || len(targetLanguages) == 0 {
-		targetLanguages = []language.Tag{language.English}
+		targetLanguages = []language.Tag{defaultLanguageTag}
 	}
 
 	for _, trF := range meta.fields {
@@ -65,22 +73,22 @@ var matchersMutex sync.RWMutex
 
 func getMatcher(fieldName string, translations Translations) language.Matcher {
 	langs := []language.Tag{}
-	enFound := false
+	defaultFound := false
 	for lang, tr := range translations {
 		_, ok := tr[fieldName]
 		if ok {
 			// First language in langs will be fallback option for matcher
 			// but map order is not stable,
-			// so we need to move en to front, if it's available
-			if lang == "en" {
-				enFound = true
+			// so we need to move default to front, if it's available
+			if lang == defaultLanguageString {
+				defaultFound = true
 			} else {
 				langs = append(langs, *getTagByString(lang))
 			}
 		}
 	}
-	if enFound {
-		langs = append([]language.Tag{language.English}, langs...)
+	if defaultFound {
+		langs = append([]language.Tag{defaultLanguageTag}, langs...)
 	}
 
 	langsKey := ""

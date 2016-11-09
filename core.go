@@ -80,7 +80,7 @@ func getMatcher(fieldName string, translations Translations) language.Matcher {
 		}
 	}
 	if enFound {
-		langs = append([]language.Tag{*getTagByString("en")}, langs...)
+		langs = append([]language.Tag{language.English}, langs...)
 	}
 
 	langsKey := ""

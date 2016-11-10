@@ -1,9 +1,11 @@
 package transl
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	"golang.org/x/text/language"
+	"math/rand"
 	"testing"
 )
 
@@ -13,25 +15,64 @@ type TrType struct {
 	Translations StringTable
 }
 
-var in = TrType{
-	Name:    "",
-	Element: "",
-	Translations: StringTable{
-		"en": map[string]string{
-			"name":    "John",
-			"element": "water",
-		},
-		"ru": map[string]string{
-			"name":    "Джон",
-			"element": "вода",
-		},
-	},
+var availableLangs = []language.Tag{
+	language.English, language.Danish, language.Chinese, language.ModernStandardArabic,
+	language.BrazilianPortuguese, language.Swahili, language.SimplifiedChinese,
+	language.Russian, language.Norwegian, language.Turkish, language.Urdu}
+
+func getRandLang() *language.Tag {
+	return &availableLangs[rand.Intn(len(availableLangs))]
 }
 
-func benchmarkTranslator(input TrType, f func(TrType) TrType, b *testing.B) {
+var contexts []context.Context
+var currentContext context.Context
+
+func benchmarkTranslator(f func(TrType) TrType, b *testing.B) {
+	inputsCount := 10000
+	inputs := []TrType{}
+	for i := 0; i < inputsCount; i++ {
+		in := TrType{Translations: StringTable{}}
+		for j := 0; j < 3+rand.Intn(12); j++ { // 3-15 translations
+			l := getRandLang()
+
+			if rand.Intn(3) > 0 { // Every 2 of 3 for this field
+				if _, ok := in.Translations[l.String()]; !ok {
+					in.Translations[l.String()] = map[string]string{}
+				}
+				in.Translations[l.String()]["name"] = fmt.Sprintf("%+v", rand.Float64())
+			}
+
+			if rand.Intn(3) > 0 { // Every 2 of 3
+				if _, ok := in.Translations[l.String()]; !ok {
+					in.Translations[l.String()] = map[string]string{}
+				}
+				in.Translations[l.String()]["element"] = fmt.Sprintf("%+v", rand.Float64())
+			}
+		}
+		inputs = append(inputs, in)
+	}
+
+	contextsCount := 10000
+	for i := 0; i < contextsCount; i++ {
+		langs := []language.Tag{}
+
+		for j := 0; j < 2+rand.Intn(5); j++ {
+			l := getRandLang()
+
+			if rand.Intn(3) > 0 { // Every 2 of 3
+				langs = append(langs, *l)
+			}
+		}
+
+		contexts = append(contexts, NewContextWithAcceptedLanguages(context.Background(), langs))
+	}
+
 	var out TrType
+
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		out = f(input)
+		currentContext = contexts[i%contextsCount]
+		out = f(inputs[i%inputsCount])
 	}
 
 	_ = out
@@ -48,16 +89,14 @@ func fixedLangTranslator(in TrType) TrType {
 	return out
 }
 
-var enCtx = NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("en")})
-
 func realTranslator(in TrType) TrType {
-	Translate(enCtx, &in)
+	Translate(currentContext, &in)
 	return in
 }
 
-func BenchmarkNoopTranslator(b *testing.B)      { benchmarkTranslator(in, noopTranslator, b) }
-func BenchmarkFixedLangTranslator(b *testing.B) { benchmarkTranslator(in, fixedLangTranslator, b) }
-func BenchmarkRealTranslator(b *testing.B)      { benchmarkTranslator(in, realTranslator, b) }
+func BenchmarkNoopTranslator(b *testing.B)      { benchmarkTranslator(noopTranslator, b) }
+func BenchmarkFixedLangTranslator(b *testing.B) { benchmarkTranslator(fixedLangTranslator, b) }
+func BenchmarkRealTranslator(b *testing.B)      { benchmarkTranslator(realTranslator, b) }
 
 func genTrObj() TrType {
 	return TrType{

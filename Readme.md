@@ -3,6 +3,10 @@
 Translate struct fields and store translations in the same struct.
 
 
+## Status
+
+Package API is _NOT_ stable yet.
+
 ## Motivation
 
 Sometimes we have structs those fields might be user-translated to different

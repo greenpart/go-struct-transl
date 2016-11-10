@@ -79,6 +79,7 @@ var matchersMutex sync.RWMutex
 
 func getMatcher(fieldName string, translations StringTable) language.Matcher {
 	var langs []language.Tag
+	var langsKey string
 
 	defaultFound := false
 	v, ok := translations[defaultLanguageString]
@@ -87,6 +88,7 @@ func getMatcher(fieldName string, translations StringTable) language.Matcher {
 		if ok {
 			defaultFound = true
 			langs = []language.Tag{defaultLanguageTag}
+			langsKey = defaultLanguageString
 		}
 	}
 	if !defaultFound {
@@ -99,13 +101,9 @@ func getMatcher(fieldName string, translations StringTable) language.Matcher {
 			// default language already in slice if needed
 			if lang != defaultLanguageString {
 				langs = append(langs, *getTagByString(lang))
+				langsKey += lang
 			}
 		}
-	}
-
-	langsKey := ""
-	for _, lang := range langs {
-		langsKey += lang.String()
 	}
 
 	matchersMutex.RLock()

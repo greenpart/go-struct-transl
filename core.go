@@ -5,6 +5,7 @@ in the same struct.
 package transl
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/json"
 	"golang.org/x/net/context"
@@ -78,20 +79,46 @@ var matchers = map[string]language.Matcher{}
 var matchersMutex sync.RWMutex
 
 func getMatcher(fieldName string, translations StringTable) language.Matcher {
-	var langs []language.Tag
-	var langsKey string
+	var langsKeyBuffer bytes.Buffer
 
+	// Build languages string key
 	defaultFound := false
 	v, ok := translations[defaultLanguageString]
 	if ok {
 		_, ok = v[fieldName]
 		if ok {
-			defaultFound = true
-			langs = []language.Tag{defaultLanguageTag}
-			langsKey = defaultLanguageString
+			langsKeyBuffer.WriteString(defaultLanguageString)
 		}
 	}
-	if !defaultFound {
+
+	for lang, tr := range translations {
+		_, ok := tr[fieldName]
+
+		if ok {
+			if lang == defaultLanguageString {
+				defaultFound = true
+			} else {
+				langsKeyBuffer.WriteString(lang)
+			}
+		}
+	}
+	langsKey := langsKeyBuffer.String()
+
+	// Return cached matcher for that string key if it's set
+	matchersMutex.RLock()
+	matcher, ok := matchers[langsKey]
+	matchersMutex.RUnlock()
+
+	if ok {
+		return matcher
+	}
+
+	// Cache missed. Lets create matcher and add it to cache
+	var langs []language.Tag
+
+	if defaultFound {
+		langs = []language.Tag{defaultLanguageTag}
+	} else {
 		langs = []language.Tag{}
 	}
 
@@ -101,17 +128,8 @@ func getMatcher(fieldName string, translations StringTable) language.Matcher {
 			// default language already in slice if needed
 			if lang != defaultLanguageString {
 				langs = append(langs, *getTagByString(lang))
-				langsKey += lang
 			}
 		}
-	}
-
-	matchersMutex.RLock()
-	matcher, ok := matchers[langsKey]
-	matchersMutex.RUnlock()
-
-	if ok {
-		return matcher
 	}
 
 	matcher = language.NewMatcher(langs)

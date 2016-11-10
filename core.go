@@ -78,23 +78,29 @@ var matchers = map[string]language.Matcher{}
 var matchersMutex sync.RWMutex
 
 func getMatcher(fieldName string, translations StringTable) language.Matcher {
-	langs := []language.Tag{}
+	var langs []language.Tag
+
 	defaultFound := false
-	for lang, tr := range translations {
-		_, ok := tr[fieldName]
+	v, ok := translations[defaultLanguageString]
+	if ok {
+		_, ok = v[fieldName]
 		if ok {
-			// First language in langs will be fallback option for matcher
-			// but map order is not stable,
-			// so we need to move default to front, if it's available
-			if lang == defaultLanguageString {
-				defaultFound = true
-			} else {
+			defaultFound = true
+			langs = []language.Tag{defaultLanguageTag}
+		}
+	}
+	if !defaultFound {
+		langs = []language.Tag{}
+	}
+
+	for lang, tr := range translations {
+		_, ok = tr[fieldName]
+		if ok {
+			// default language already in slice if needed
+			if lang != defaultLanguageString {
 				langs = append(langs, *getTagByString(lang))
 			}
 		}
-	}
-	if defaultFound {
-		langs = append([]language.Tag{defaultLanguageTag}, langs...)
 	}
 
 	langsKey := ""

@@ -27,6 +27,19 @@ func getRandLang() *language.Tag {
 var contexts []context.Context
 var currentContext context.Context
 
+var enCtx = NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("en")})
+
+func oldBenchmarkTranslator(input TrType, f func(TrType) TrType, b *testing.B) {
+	var out TrType
+	currentContext = enCtx
+
+	for i := 0; i < b.N; i++ {
+		out = f(input)
+	}
+
+	_ = out
+}
+
 func benchmarkTranslator(f func(TrType) TrType, b *testing.B) {
 	inputsCount := 10000
 	inputs := []TrType{}
@@ -96,7 +109,8 @@ func realTranslator(in TrType) TrType {
 
 func BenchmarkNoopTranslator(b *testing.B)      { benchmarkTranslator(noopTranslator, b) }
 func BenchmarkFixedLangTranslator(b *testing.B) { benchmarkTranslator(fixedLangTranslator, b) }
-func BenchmarkRealTranslator(b *testing.B)      { benchmarkTranslator(realTranslator, b) }
+func BenchmarkRealTranslator(b *testing.B)      { oldBenchmarkTranslator(genTrObj(), realTranslator, b) }
+func BenchmarkReRandTranslator(b *testing.B)    { benchmarkTranslator(realTranslator, b) }
 
 func genTrObj() TrType {
 	return TrType{

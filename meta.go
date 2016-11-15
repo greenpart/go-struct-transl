@@ -11,8 +11,9 @@ type fieldMeta struct {
 }
 
 type structMeta struct {
-	valid  bool
-	fields []fieldMeta
+	valid   bool
+	fields  []fieldMeta
+	trIndex int
 }
 
 // buildStructMeta fills structMeta with translation-enabled
@@ -25,13 +26,7 @@ type structMeta struct {
 // 		Second string `tr:"sec"`	// key is set to `sec`
 // }
 func buildStructMeta(typ reflect.Type) *structMeta {
-	result := structMeta{true, []fieldMeta{}}
-
-	_, found := typ.FieldByName("Translations")
-	if !found {
-		result.valid = false
-		return &result
-	}
+	result := structMeta{valid: true, trIndex: -1}
 
 	for i := 0; i < typ.NumField(); i++ {
 		fld := typ.Field(i)
@@ -48,9 +43,13 @@ func buildStructMeta(typ reflect.Type) *structMeta {
 
 			result.fields = append(result.fields, fm)
 		}
+
+		if fld.Name == "Translations" {
+			result.trIndex = i
+		}
 	}
 
-	if len(result.fields) == 0 {
+	if len(result.fields) == 0 || result.trIndex == -1 {
 		result.valid = false
 	}
 

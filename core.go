@@ -51,7 +51,7 @@ func Translate(ctx context.Context, target interface{}) {
 
 	structValue := reflect.Indirect(reflect.ValueOf(target))
 
-	translations, ok := structValue.FieldByName("Translations").Interface().(StringTable)
+	translations, ok := structValue.Field(meta.trIndex).Interface().(StringTable)
 	if !ok || len(translations) == 0 {
 		return
 	}

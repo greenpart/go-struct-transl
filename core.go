@@ -5,7 +5,6 @@ in the same struct.
 package transl
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"encoding/json"
 	"golang.org/x/net/context"
@@ -75,11 +74,14 @@ func translateField(field reflect.Value, fieldName string, translations StringTa
 	field.SetString(translations[effectiveLang.String()][fieldName])
 }
 
-var matchers = map[string]language.Matcher{}
+const maxLangs = int(10)
+
+var matchers = map[[maxLangs]string]language.Matcher{}
 var matchersMutex sync.RWMutex
 
 func getMatcher(fieldName string, translations StringTable) language.Matcher {
-	var langsKeyBuffer bytes.Buffer
+	var langsKey [maxLangs]string
+	var i int
 
 	// Build languages string key
 	defaultFound := false
@@ -87,22 +89,23 @@ func getMatcher(fieldName string, translations StringTable) language.Matcher {
 	if ok {
 		_, ok = v[fieldName]
 		if ok {
-			langsKeyBuffer.WriteString(defaultLanguageString)
+			langsKey[i] = defaultLanguageString
+			i++
 		}
 	}
 
 	for lang, tr := range translations {
-		_, ok := tr[fieldName]
+		_, ok = tr[fieldName]
 
 		if ok {
 			if lang == defaultLanguageString {
 				defaultFound = true
 			} else {
-				langsKeyBuffer.WriteString(lang)
+				langsKey[i] = lang
+				i++
 			}
 		}
 	}
-	langsKey := langsKeyBuffer.String()
 
 	// Return cached matcher for that string key if it's set
 	matchersMutex.RLock()

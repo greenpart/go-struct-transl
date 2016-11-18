@@ -84,7 +84,6 @@ func getMatcher(fieldName string, translations StringTable) language.Matcher {
 	var i int
 
 	// Build languages string key
-	defaultFound := false
 	v, ok := translations[defaultLanguageString]
 	if ok {
 		_, ok = v[fieldName]
@@ -99,7 +98,6 @@ func getMatcher(fieldName string, translations StringTable) language.Matcher {
 
 		if ok {
 			if lang == defaultLanguageString {
-				defaultFound = true
 			} else {
 				langsKey[i] = lang
 				i++
@@ -117,22 +115,10 @@ func getMatcher(fieldName string, translations StringTable) language.Matcher {
 	}
 
 	// Cache missed. Lets create matcher and add it to cache
-	var langs []language.Tag
+	langs := make([]language.Tag, 0, i)
 
-	if defaultFound {
-		langs = []language.Tag{defaultLanguageTag}
-	} else {
-		langs = []language.Tag{}
-	}
-
-	for lang, tr := range translations {
-		_, ok = tr[fieldName]
-		if ok {
-			// default language already in slice if needed
-			if lang != defaultLanguageString {
-				langs = append(langs, *getTagByString(lang))
-			}
-		}
+	for j := 0; j < i; j++ {
+		langs = append(langs, *getTagByString(langsKey[j]))
 	}
 
 	matcher = language.NewMatcher(langs)

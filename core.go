@@ -61,7 +61,7 @@ func Translate(ctx context.Context, target interface{}) {
 	}
 
 	for _, trF := range meta.fields {
-		f := structValue.FieldByName(trF.name)
+		f := structValue.Field(trF.index)
 		if f.IsValid() && f.CanSet() && f.Kind() == reflect.String {
 			translateField(f, trF.key, translations, targetLanguages)
 		}

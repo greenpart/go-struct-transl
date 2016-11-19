@@ -6,8 +6,9 @@ import (
 )
 
 type fieldMeta struct {
-	name string
-	key  string
+	name  string
+	key   string
+	index int
 }
 
 type structMeta struct {
@@ -39,7 +40,7 @@ func buildStructMeta(typ reflect.Type) *structMeta {
 				key = name
 			}
 
-			fm := fieldMeta{name, key}
+			fm := fieldMeta{name, key, i}
 
 			result.fields = append(result.fields, fm)
 		}

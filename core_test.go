@@ -243,3 +243,37 @@ func TestOtherValueField(t *testing.T) {
 
 	assert.Equal(t, 0, o.Num)
 }
+
+func TestStringTableJsonScan(t *testing.T) {
+	st := StringTable{}
+	err := st.Scan([]uint8(`{}`))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, StringTable{}, st)
+
+	st = StringTable{}
+	err = st.Scan([]uint8(`{"en":{}}`))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, StringTable{"en": map[string]string{}}, st)
+
+	st = StringTable{}
+	err = st.Scan([]uint8(`{"en":{"name":"Bob"}}`))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, StringTable{"en": map[string]string{"name": "Bob"}}, st)
+
+	st = StringTable{}
+	err = st.Scan([]uint8(`{"en":{"name":"Bob"}, "ru":{"element": "earth"}}`))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, StringTable{"en": map[string]string{"name": "Bob"}, "ru": map[string]string{"element": "earth"}}, st)
+}
+
+func TestStringTableJsonValue(t *testing.T) {
+	st := StringTable{}
+	v, err := st.Value()
+	assert.Equal(t, nil, err)
+	assert.Equal(t, "{}", v)
+
+	st = StringTable{"en": map[string]string{}}
+	v, err = st.Value()
+	assert.Equal(t, nil, err)
+	assert.Equal(t, `{"en":{}}`, v)
+}

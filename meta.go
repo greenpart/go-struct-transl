@@ -52,6 +52,7 @@ func buildStructMeta(typ reflect.Type) *structMeta {
 
 	if len(result.fields) == 0 || result.trIndex == -1 {
 		result.valid = false
+		result.fields = []fieldMeta{}
 	}
 
 	return &result

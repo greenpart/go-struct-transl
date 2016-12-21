@@ -1,4 +1,4 @@
-# go-struct-transl [![Build Status](https://travis-ci.org/greenpart/go-struct-transl.svg?branch=master)](https://travis-ci.org/greenpart/go-struct-transl)
+# go-struct-transl [![Build Status](https://travis-ci.org/greenpart/go-struct-transl.svg?branch=master)](https://travis-ci.org/greenpart/go-struct-transl) [![Coverage Status](https://coveralls.io/repos/github/greenpart/go-struct-transl/badge.svg?branch=master)](https://coveralls.io/github/greenpart/go-struct-transl?branch=master)
 
 Translate struct fields and store translations in the same struct.
 

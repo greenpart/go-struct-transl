@@ -36,6 +36,7 @@ package main
 import (
 	"fmt"
 	"github.com/greenpart/go-struct-transl"
+	"github.com/greenpart/go-struct-transl/exact"
 	"golang.org/x/text/language"
 )
 
@@ -57,7 +58,8 @@ var s = Something{T: transl.KeyLangValueMap{
 }
 
 func main() {
-	transl.Translate(&s, []language.Tag{language.Russian})
+	t := exact.NewTranslater()
+	t.Translate(&s, []language.Tag{language.Russian})
 	fmt.Printf("Name: %s Element: %s\n", s.Name, s.Element)
 	// Output: Name: Джон Element: water
 }
@@ -80,14 +82,14 @@ preferred, _, err := language.ParseAcceptLanguage(request.Header.Get("Accept-Lan
 and later
 
 ``` Go
-transl.Translate(&s, preferred)
+t.Translate(&s, preferred)
 ```
 
 
 ## Default language
 
-You can change default (English) language using
+You can change default (English) language using `SetDefaults` method of `ExactTranslater`
 
 ``` Go
-transl.SetDefaults("zh", language.Chinese)
+t.SetDefaults("zh", language.Chinese)
 ```

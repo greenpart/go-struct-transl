@@ -7,17 +7,17 @@ import (
 )
 
 type fieldMeta struct {
-	name  string
-	key   string
-	index int
+	Name  string
+	Key   string
+	Index int
 }
 
-type structMeta struct {
-	fields       []fieldMeta
-	translatable bool
-	getterIdx    int
+type StructMeta struct {
+	Fields       []fieldMeta
+	Translatable bool
+	GetterIdx    int
 
-	err error
+	Err error
 }
 
 // buildStructMeta fills structMeta with translation-enabled
@@ -29,20 +29,20 @@ type structMeta struct {
 // 		First  string `tr:"."`      // key will be equal to field name
 // 		Second string `tr:"sec"`	// key is set to `sec`
 // }
-func buildStructMeta(target interface{}) *structMeta {
+func buildStructMeta(target interface{}) *StructMeta {
 	typ := reflect.TypeOf(target)
-	result := structMeta{
-		getterIdx: -1,
+	result := StructMeta{
+		GetterIdx: -1,
 	}
 
 	if typ.Kind() != reflect.Ptr {
-		result.err = fmt.Errorf("Translate of non-pointer type")
+		result.Err = fmt.Errorf("Translate of non-pointer type")
 		return &result
 	}
 	t := typ.Elem()
 
 	if _, ok := target.(Translatable); ok {
-		result.translatable = true
+		result.Translatable = true
 		return &result
 	}
 
@@ -59,19 +59,18 @@ func buildStructMeta(target interface{}) *structMeta {
 
 			fm := fieldMeta{name, key, i}
 
-			result.fields = append(result.fields, fm)
+			result.Fields = append(result.Fields, fm)
 		}
 
-		// fmt.Printf("field %+v of %+v type\n", fld.Name, fld.Type)
 		TranslationsGetterType := reflect.TypeOf((*TranslationsGetter)(nil)).Elem()
 		if fld.Type.Implements(TranslationsGetterType) {
-			result.getterIdx = i
+			result.GetterIdx = i
 		}
 	}
 
-	if len(result.fields) == 0 || result.getterIdx == -1 {
-		result.err = fmt.Errorf("Translate of struct without suitable fields")
-		result.fields = []fieldMeta(nil)
+	if len(result.Fields) == 0 || result.GetterIdx == -1 {
+		result.Err = fmt.Errorf("Translate of struct without suitable fields")
+		result.Fields = []fieldMeta(nil)
 	}
 
 	return &result
@@ -80,13 +79,17 @@ func buildStructMeta(target interface{}) *structMeta {
 // Cache metadata building
 
 type structsMetaCache struct {
-	metas map[reflect.Type]*structMeta
+	metas map[reflect.Type]*StructMeta
 	mutex sync.RWMutex
 }
 
-var metas = structsMetaCache{map[reflect.Type]*structMeta{}, sync.RWMutex{}}
+var metas = structsMetaCache{map[reflect.Type]*StructMeta{}, sync.RWMutex{}}
 
-func (c *structsMetaCache) getStructMeta(target interface{}) (*structMeta, error) {
+func GetStructMeta(target interface{}) (*StructMeta, error) {
+	return metas.getStructMeta(target)
+}
+
+func (c *structsMetaCache) getStructMeta(target interface{}) (*StructMeta, error) {
 	typ := reflect.TypeOf(target)
 
 	c.mutex.RLock()
@@ -94,7 +97,7 @@ func (c *structsMetaCache) getStructMeta(target interface{}) (*structMeta, error
 	c.mutex.RUnlock()
 
 	if ok {
-		return meta, meta.err
+		return meta, meta.Err
 	}
 
 	c.mutex.Lock()
@@ -102,5 +105,5 @@ func (c *structsMetaCache) getStructMeta(target interface{}) (*structMeta, error
 	c.metas[typ] = meta
 	c.mutex.Unlock()
 
-	return meta, meta.err
+	return meta, meta.Err
 }

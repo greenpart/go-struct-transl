@@ -1,34 +1,42 @@
 package transl
 
 import (
+	"errors"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/text/language"
 	"testing"
 )
 
+type goodStruct struct {
+	Name         string `tr:"."`
+	Kind         int
+	Element      string `tr:"element"`
+	Translations KeyLangValueMap
+}
+
 func TestGetStructMeta(t *testing.T) {
-	type goodStruct struct {
-		Name         string `tr:"."`
-		Kind         int
-		Element      string `tr:"element"`
-		Translations StringTable
-	}
-
 	s := goodStruct{}
-	meta := metas.getStructMeta(s)
+	meta, err := metas.getStructMeta(&s)
 
-	assert.Equal(t, true, meta.valid)
-	assert.Equal(t, 3, meta.trIndex)
-	assert.Equal(t, 2, len(meta.fields))
+	assert.Nil(t, err)
 
-	f := meta.fields[0]
-	assert.Equal(t, "Name", f.name)
-	assert.Equal(t, "Name", f.key)
-	assert.Equal(t, 0, f.index)
+	assert.Equal(t, &StructMeta{
+		Translatable: false,
+		GetterIdx:    3,
 
-	f = meta.fields[1]
-	assert.Equal(t, "Element", f.name)
-	assert.Equal(t, "element", f.key)
-	assert.Equal(t, 2, f.index)
+		Fields: []fieldMeta{
+			fieldMeta{
+				Name:  "Name",
+				Key:   "Name",
+				Index: 0,
+			},
+			fieldMeta{
+				Name:  "Element",
+				Key:   "element",
+				Index: 2,
+			},
+		},
+	}, meta)
 }
 
 func TestGetStructMetaNoTranslations(t *testing.T) {
@@ -37,23 +45,60 @@ func TestGetStructMetaNoTranslations(t *testing.T) {
 	}
 
 	s := noTrStruct{}
-	meta := metas.getStructMeta(s)
+	_, err := metas.getStructMeta(&s)
 
-	assert.Equal(t, false, meta.valid)
-	assert.Equal(t, -1, meta.trIndex)
-	assert.Equal(t, 0, len(meta.fields))
+	if assert.NotNil(t, err) {
+		assert.Equal(t, errors.New("Translate of struct without suitable fields"), err)
+	}
+}
+
+type regularStruct struct {
+	Name string
+	Kind int
 }
 
 func TestGetStructMetaRegular(t *testing.T) {
-	type regularStruct struct {
-		Name string
-		Kind int
-	}
-
 	s := regularStruct{}
-	meta := metas.getStructMeta(s)
+	_, err := metas.getStructMeta(&s)
 
-	assert.Equal(t, false, meta.valid)
-	assert.Equal(t, -1, meta.trIndex)
-	assert.Equal(t, 0, len(meta.fields))
+	if assert.NotNil(t, err) {
+		assert.Equal(t, errors.New("Translate of struct without suitable fields"), err)
+	}
+}
+
+func TestGetStructMetaNotPointer(t *testing.T) {
+	s := regularStruct{}
+	_, err := metas.getStructMeta(s)
+
+	if assert.NotNil(t, err) {
+		assert.Equal(t, errors.New("Translate of non-pointer type"), err)
+	}
+}
+
+func TestGetStructMetaImported(t *testing.T) {
+	s := goodStruct{}
+	v1, e1 := GetStructMeta(s)
+	v2, e2 := metas.getStructMeta(s)
+	assert.Equal(t, v1, v2)
+	assert.Equal(t, e1, e2)
+}
+
+type translatableStruct struct {
+	Name string
+	Kind int
+}
+
+func (t *translatableStruct) Translate(preferred []language.Tag) error {
+	return nil
+}
+
+func TestGetStructMetaTranslatable(t *testing.T) {
+	s := translatableStruct{}
+	meta, err := metas.getStructMeta(&s)
+
+	assert.Nil(t, err)
+	assert.Equal(t, &StructMeta{
+		Translatable: true,
+		GetterIdx:    -1,
+	}, meta)
 }

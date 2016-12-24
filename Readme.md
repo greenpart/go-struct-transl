@@ -36,39 +36,38 @@ package main
 import (
 	"fmt"
 	"github.com/greenpart/go-struct-transl"
-	"golang.org/x/net/context"
+	"github.com/greenpart/go-struct-transl/exact"
 	"golang.org/x/text/language"
 )
 
 type Something struct {
-	Name         string `tr:"name"`
-	Element      string `tr:"element"`
-	Translations transl.StringTable
+	Name    string `tr:"name"`
+	Element string `tr:"element"`
+	T       transl.KeyLangValueMap
 }
 
-var s = Something{Translations: transl.StringTable{
-	"en": map[string]string{
-		"name":    "John",
-		"element": "water",
+var s = Something{T: transl.KeyLangValueMap{
+	"name": map[string]string{
+		"en": "John",
+		"ru": "Джон",
 	},
-	"ru": map[string]string{
-		"name": "Джон",
+	"element": map[string]string{
+		"en": "water",
 	},
 },
 }
 
-var ruCtx = transl.NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Russian})
-
 func main() {
-	transl.Translate(ruCtx, &s)
+	t := exact.NewTranslater()
+	t.Translate(&s, []language.Tag{language.Russian})
 	fmt.Printf("Name: %s Element: %s\n", s.Name, s.Element)
-	// Name: Джон Element: water
+	// Output: Name: Джон Element: water
 }
 ```
 
 You can see that Name field populated from target `ru` translation and Element field value is from default `en` translation.
 
-In more complex cases with many accepted languages and given translations each field will be set to the best translation available.
+In more complex cases with many accepted languages and given translations each field will be set to the best translation available using [golang.org/x/text/language](https://godoc.org/golang.org/x/text/language).
 
 
 ## Accepted languages from HTTP request
@@ -77,18 +76,20 @@ You can use `Accept-Language` HTTP header to form language tags. Perhaps
 somewhere in your middleware.
 
 ``` Go
-if tags, _, err := language.ParseAcceptLanguage(request.Header.Get("Accept-Language")); err == nil {
-	ctx = transl.NewContextWithAcceptedLanguages(ctx, tags)
-}
+preferred, _, err := language.ParseAcceptLanguage(request.Header.Get("Accept-Language"))
+```
 
-return ctx
+and later
+
+``` Go
+t.Translate(&s, preferred)
 ```
 
 
 ## Default language
 
-You can change default (English) language using
+You can change default (English) language using `SetDefaults` method of `ExactTranslater`
 
 ``` Go
-transl.SetDefaults("zh", language.Chinese)
+t.SetDefaults("zh", language.Chinese)
 ```

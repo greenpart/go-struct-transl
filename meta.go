@@ -14,7 +14,6 @@ type fieldMeta struct {
 
 type structMeta struct {
 	fields       []fieldMeta
-	trIndex      int
 	translatable bool
 	getterIdx    int
 
@@ -33,7 +32,6 @@ type structMeta struct {
 func buildStructMeta(target interface{}) *structMeta {
 	typ := reflect.TypeOf(target)
 	result := structMeta{
-		trIndex:   -1,
 		getterIdx: -1,
 	}
 
@@ -68,10 +66,6 @@ func buildStructMeta(target interface{}) *structMeta {
 		TranslationsGetterType := reflect.TypeOf((*TranslationsGetter)(nil)).Elem()
 		if fld.Type.Implements(TranslationsGetterType) {
 			result.getterIdx = i
-		}
-
-		if fld.Name == "Translations" {
-			result.trIndex = i
 		}
 	}
 

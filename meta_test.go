@@ -22,7 +22,6 @@ func TestGetStructMeta(t *testing.T) {
 
 	assert.Equal(t, &structMeta{
 		translatable: false,
-		trIndex:      3,
 		getterIdx:    3,
 
 		fields: []fieldMeta{
@@ -83,7 +82,6 @@ func TestGetStructMetaTranslatable(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, &structMeta{
 		translatable: true,
-		trIndex:      -1,
 		getterIdx:    -1,
 	}, meta)
 }

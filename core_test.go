@@ -1,9 +1,9 @@
-package transl
+package transl_test
 
 import (
 	"fmt"
+	"github.com/greenpart/go-struct-transl"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 	"golang.org/x/text/language"
 	"math/rand"
 	"testing"
@@ -12,7 +12,7 @@ import (
 type TrType struct {
 	Name         string `tr:"name"`
 	Element      string `tr:"element"`
-	Translations StringTable
+	Translations transl.KeyLangValueMap
 }
 
 var availableLangs = []language.Tag{
@@ -24,14 +24,14 @@ func getRandLang() *language.Tag {
 	return &availableLangs[rand.Intn(len(availableLangs))]
 }
 
-var contexts []context.Context
-var currentContext context.Context
+var preferredSlices [][]language.Tag
+var currentPreferred []language.Tag
 
-var enCtx = NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("en")})
+var enPreferred = []language.Tag{language.English}
 
 func oldBenchmarkTranslator(input TrType, f func(TrType) TrType, b *testing.B) {
 	var out TrType
-	currentContext = enCtx
+	currentPreferred = enPreferred
 
 	for i := 0; i < b.N; i++ {
 		out = f(input)
@@ -44,29 +44,26 @@ func benchmarkTranslator(f func(TrType) TrType, b *testing.B) {
 	inputsCount := 10000
 	inputs := []TrType{}
 	for i := 0; i < inputsCount; i++ {
-		in := TrType{Translations: StringTable{}}
+		in := TrType{Translations: transl.KeyLangValueMap{
+			"name":    map[string]string{},
+			"element": map[string]string{},
+		}}
 		for j := 0; j < 3+rand.Intn(12); j++ { // 3-15 translations
 			l := getRandLang()
 
 			if rand.Intn(3) > 0 { // Every 2 of 3 for this field
-				if _, ok := in.Translations[l.String()]; !ok {
-					in.Translations[l.String()] = map[string]string{}
-				}
-				in.Translations[l.String()]["name"] = fmt.Sprintf("%+v", rand.Float64())
+				in.Translations["name"][l.String()] = fmt.Sprintf("%+v", rand.Float64())
 			}
 
 			if rand.Intn(3) > 0 { // Every 2 of 3
-				if _, ok := in.Translations[l.String()]; !ok {
-					in.Translations[l.String()] = map[string]string{}
-				}
-				in.Translations[l.String()]["element"] = fmt.Sprintf("%+v", rand.Float64())
+				in.Translations["element"][l.String()] = fmt.Sprintf("%+v", rand.Float64())
 			}
 		}
 		inputs = append(inputs, in)
 	}
 
-	contextsCount := 10000
-	for i := 0; i < contextsCount; i++ {
+	preferredsCount := 10000
+	for i := 0; i < preferredsCount; i++ {
 		langs := []language.Tag{}
 
 		for j := 0; j < 2+rand.Intn(5); j++ {
@@ -77,14 +74,14 @@ func benchmarkTranslator(f func(TrType) TrType, b *testing.B) {
 			}
 		}
 
-		contexts = append(contexts, NewContextWithAcceptedLanguages(context.Background(), langs))
+		preferredSlices = append(preferredSlices, langs)
 	}
 
 	var out TrType
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		currentContext = contexts[i%contextsCount]
+		currentPreferred = preferredSlices[i%preferredsCount]
 		out = f(inputs[i%inputsCount])
 	}
 
@@ -97,13 +94,13 @@ func noopTranslator(in TrType) (out TrType) {
 
 func fixedLangTranslator(in TrType) TrType {
 	out := in
-	out.Name = out.Translations["en"]["name"]
-	out.Element = out.Translations["en"]["element"]
+	out.Name = out.Translations["name"]["en"]
+	out.Element = out.Translations["element"]["en"]
 	return out
 }
 
 func realTranslator(in TrType) TrType {
-	Translate(currentContext, &in)
+	transl.Translate(&in, currentPreferred)
 	return in
 }
 
@@ -112,66 +109,84 @@ func BenchmarkFixedLangTranslator(b *testing.B) { benchmarkTranslator(fixedLangT
 func BenchmarkRealTranslator(b *testing.B)      { oldBenchmarkTranslator(genTrObj(), realTranslator, b) }
 func BenchmarkReRandTranslator(b *testing.B)    { benchmarkTranslator(realTranslator, b) }
 
+type TS struct {
+	called int
+}
+
+func (ts *TS) Translate(preferred []language.Tag) error {
+	ts.called += 1
+	return nil
+}
+
+func TestTranslateNonPointer(t *testing.T) {
+	ts := TS{}
+	err := transl.Translate(ts, []language.Tag{})
+
+	if assert.NotNil(t, err) {
+		assert.Equal(t, fmt.Errorf("Translate of non-pointer type"), err)
+	}
+}
+
+func TestTranslateTranslatable(t *testing.T) {
+	ts := TS{}
+	err := transl.Translate(&ts, []language.Tag{})
+
+	assert.Nil(t, err)
+	assert.Equal(t, 1, ts.called)
+}
+
 func genTrObj() TrType {
 	return TrType{
 		Name:    "",
 		Element: "",
-		Translations: StringTable{
-			"en": map[string]string{
-				"name":    "John",
-				"element": "water",
+		Translations: transl.KeyLangValueMap{
+			"name": map[string]string{
+				"en": "John",
+				"ru": "Джон",
 			},
-			"ru": map[string]string{
-				"name":    "Джон",
-				"element": "вода",
+			"element": map[string]string{
+				"en": "water",
+				"ru": "вода",
 			},
 		},
 	}
 }
 
 func TestPerfectCase(t *testing.T) {
-	enCtx := NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("en")})
+	s := genTrObj()
+	transl.Translate(&s, []language.Tag{language.English})
 
-	o := genTrObj()
-	Translate(enCtx, &o)
-
-	assert.Equal(t, "John", o.Name)
-	assert.Equal(t, "water", o.Element)
+	assert.Equal(t, "John", s.Name)
+	assert.Equal(t, "water", s.Element)
 }
 
 func TestPerfectCaseWithSecondLang(t *testing.T) {
-	ruEnCtx := NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("ru"), language.Make("en")})
-
 	o := genTrObj()
-	Translate(ruEnCtx, &o)
+	transl.Translate(&o, []language.Tag{language.Russian, language.English})
 
 	assert.Equal(t, "Джон", o.Name)
 	assert.Equal(t, "вода", o.Element)
 }
 
 func TestMissingFirstLang(t *testing.T) {
-	jaEnCtx := NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("ja"), language.Make("en")})
-
 	o := genTrObj()
-	Translate(jaEnCtx, &o)
+	transl.Translate(&o, []language.Tag{language.Japanese, language.English})
 
 	assert.Equal(t, "John", o.Name)
 	assert.Equal(t, "water", o.Element)
 }
 
 func TestMissingAllLangsUseEn(t *testing.T) {
-	jaPtCtx := NewContextWithAcceptedLanguages(context.Background(), []language.Tag{language.Make("ja"), language.Make("pt")})
-
 	o := genTrObj()
-	Translate(jaPtCtx, &o)
+	transl.Translate(&o, []language.Tag{language.Japanese, language.Portuguese})
 
 	assert.Equal(t, "John", o.Name)
 	assert.Equal(t, "water", o.Element)
 }
 
-func TestNoLangInContextUseEn(t *testing.T) {
+func TestNoPreferredLang(t *testing.T) {
 	o := genTrObj()
-	Translate(context.Background(), &o)
+	transl.Translate(&o, []language.Tag{})
 
 	assert.Equal(t, "John", o.Name)
 	assert.Equal(t, "water", o.Element)
@@ -179,8 +194,9 @@ func TestNoLangInContextUseEn(t *testing.T) {
 
 func TestNoEnValuesForDefaltsUsesRu(t *testing.T) {
 	o := genTrObj()
-	o.Translations["en"] = map[string]string{}
-	Translate(context.Background(), &o)
+	delete(o.Translations["name"], "en")
+	delete(o.Translations["element"], "en")
+	transl.Translate(&o, []language.Tag{})
 
 	assert.Equal(t, "Джон", o.Name)
 	assert.Equal(t, "вода", o.Element)
@@ -188,92 +204,92 @@ func TestNoEnValuesForDefaltsUsesRu(t *testing.T) {
 
 func TestNoValues(t *testing.T) {
 	o := genTrObj()
-	o.Translations = StringTable{}
-	Translate(context.Background(), &o)
+	o.Translations = transl.KeyLangValueMap{}
+	transl.Translate(&o, []language.Tag{})
 
 	assert.Equal(t, "", o.Name)
 	assert.Equal(t, "", o.Element)
 }
 
 func TestOtherDefaults(t *testing.T) {
-	SetDefaults("ru", language.Make("ru"))
+	transl.SetDefaults("ru", language.Russian)
 
 	o := genTrObj()
-	Translate(context.Background(), &o)
+	transl.Translate(&o, []language.Tag{})
 
 	assert.Equal(t, "Джон", o.Name)
 	assert.Equal(t, "вода", o.Element)
 
-	SetDefaults(defaultLanguageString, defaultLanguageTag)
+	transl.SetDefaults("en", language.English)
 }
 
 // Edge cases for missing/invalid `Translations` and translated field
 
-type NoTranslationsFieldType struct {
-	Name string `tr:"name"`
-}
-
 func TestNoTranslationsField(t *testing.T) {
-	o := NoTranslationsFieldType{}
-	Translate(context.Background(), &o)
+	type T struct {
+		Name string
+	}
+
+	o := T{}
+	transl.Translate(&o, []language.Tag{})
 
 	assert.Equal(t, "", o.Name)
-}
-
-type OtherTranslationsFieldType struct {
-	Name         string `tr:"name"`
-	Translations int
 }
 
 func TestOtherTranslationsField(t *testing.T) {
-	o := OtherTranslationsFieldType{}
-	Translate(context.Background(), &o)
+	type T struct {
+		Name         string `tr:"name"`
+		Translations int
+	}
+
+	o := T{}
+	transl.Translate(&o, []language.Tag{})
 
 	assert.Equal(t, "", o.Name)
 }
 
-type OtherValueFieldType struct {
-	Num          int `tr:"num"`
-	Translations StringTable
-}
-
 func TestOtherValueField(t *testing.T) {
-	o := OtherValueFieldType{}
-	Translate(context.Background(), &o)
+	type T struct {
+		Num          int `tr:"num"`
+		Translations transl.KeyLangValueMap
+	}
+
+	o := T{}
+	transl.Translate(&o, []language.Tag{})
 
 	assert.Equal(t, 0, o.Num)
 }
 
 func TestStringTableJsonScan(t *testing.T) {
-	st := StringTable{}
+	st := transl.KeyLangValueMap{}
 	err := st.Scan([]uint8(`{}`))
 	assert.Equal(t, nil, err)
-	assert.Equal(t, StringTable{}, st)
+	assert.Equal(t, transl.KeyLangValueMap{}, st)
 
-	st = StringTable{}
-	err = st.Scan([]uint8(`{"en":{}}`))
+	st = transl.KeyLangValueMap{}
+	err = st.Scan([]uint8(`{"name":{}}`))
 	assert.Equal(t, nil, err)
-	assert.Equal(t, StringTable{"en": map[string]string{}}, st)
+	assert.Equal(t, transl.KeyLangValueMap{"name": map[string]string{}}, st)
 
-	st = StringTable{}
-	err = st.Scan([]uint8(`{"en":{"name":"Bob"}}`))
+	st = transl.KeyLangValueMap{}
+	err = st.Scan([]uint8(`{"name":{"en":"Bob"}}`))
 	assert.Equal(t, nil, err)
-	assert.Equal(t, StringTable{"en": map[string]string{"name": "Bob"}}, st)
+	assert.Equal(t, transl.KeyLangValueMap{"name": map[string]string{"en": "Bob"}}, st)
 
-	st = StringTable{}
-	err = st.Scan([]uint8(`{"en":{"name":"Bob"}, "ru":{"element": "earth"}}`))
+	st = transl.KeyLangValueMap{}
+	err = st.Scan([]uint8(`{"name":{"en":"Bob"}, "element":{"ru": "earth"}}`))
 	assert.Equal(t, nil, err)
-	assert.Equal(t, StringTable{"en": map[string]string{"name": "Bob"}, "ru": map[string]string{"element": "earth"}}, st)
+	assert.Equal(t, transl.KeyLangValueMap{"name": map[string]string{"en": "Bob"}, "element": map[string]string{"ru": "earth"}}, st)
 }
 
 func TestStringTableJsonValue(t *testing.T) {
-	st := StringTable{}
+	st := transl.KeyLangValueMap{}
 	v, err := st.Value()
 	assert.Equal(t, nil, err)
 	assert.Equal(t, "{}", v)
 
-	st = StringTable{"en": map[string]string{}}
+	st = transl.KeyLangValueMap{"name": map[string]string{}}
 	v, err = st.Value()
 	assert.Equal(t, nil, err)
-	assert.Equal(t, `{"en":{}}`, v)
+	assert.Equal(t, `{"name":{}}`, v)
 }

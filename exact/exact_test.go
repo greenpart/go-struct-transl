@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-var exTr = exact.NewTranslater()
+var exTr = exact.NewTranslator()
 
 type TrType struct {
 	Name         string `tr:"name"`

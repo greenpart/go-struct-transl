@@ -10,11 +10,11 @@ import (
 	"golang.org/x/text/language"
 )
 
-// Translater is the interface that wraps the Translate self method.
+// Translator is the interface that wraps the Translate self method.
 //
 // Translate changes value of TARGET to fit preferred languages.
 // It returns any error encountered.
-type Translater interface {
+type Translator interface {
 	Translate(target interface{}, preferred []language.Tag) error
 }
 

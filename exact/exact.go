@@ -49,7 +49,7 @@ func (t *exactTranslator) SetDefaults(str string, tag language.Tag) {
 //
 // If target implements Translatable interface
 // this function calls Translate method on target.
-func (t exactTranslator) Translate(target interface{}, preferred []language.Tag) error {
+func (t *exactTranslator) Translate(target interface{}, preferred []language.Tag) error {
 	meta, err := transl.GetStructMeta(target)
 	if err != nil {
 		return err

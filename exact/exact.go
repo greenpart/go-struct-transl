@@ -7,10 +7,10 @@ import (
 	"sync"
 )
 
-// ExactTranslater assigns best suitable translation for each field separately.
+// ExactTranslator assigns best suitable translation for each field separately.
 // Result may have fields assigned to different language values.
-type ExactTranslater interface {
-	transl.Translater
+type ExactTranslator interface {
+	transl.Translator
 	SetDefaults(str string, tag language.Tag)
 }
 
@@ -18,7 +18,7 @@ const maxLangs = int(10)
 
 type matchersMap map[[maxLangs]string]language.Matcher
 type tagsMap map[string]language.Tag
-type exactTranslater struct {
+type exactTranslator struct {
 	defaultString string
 	defaultTag    language.Tag
 
@@ -29,9 +29,9 @@ type exactTranslater struct {
 	tagsMutex sync.RWMutex
 }
 
-// NewTranslater returns new ExactTranslater
-func NewTranslater() ExactTranslater {
-	return &exactTranslater{
+// NewTranslater returns new ExactTranslator
+func NewTranslator() ExactTranslator {
+	return &exactTranslator{
 		defaultString: "en",
 		defaultTag:    language.English,
 		matchers:      matchersMap{},
@@ -40,7 +40,7 @@ func NewTranslater() ExactTranslater {
 }
 
 // SetDefaults redefines default language string and tag
-func (t *exactTranslater) SetDefaults(str string, tag language.Tag) {
+func (t *exactTranslator) SetDefaults(str string, tag language.Tag) {
 	t.defaultString = str
 	t.defaultTag = tag
 }
@@ -49,7 +49,7 @@ func (t *exactTranslater) SetDefaults(str string, tag language.Tag) {
 //
 // If target implements Translatable interface
 // this function calls Translate method on target.
-func (t exactTranslater) Translate(target interface{}, preferred []language.Tag) error {
+func (t exactTranslator) Translate(target interface{}, preferred []language.Tag) error {
 	meta, err := transl.GetStructMeta(target)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func (t exactTranslater) Translate(target interface{}, preferred []language.Tag)
 	return t.translateStructWithGetterField(target, preferred, meta)
 }
 
-func (t *exactTranslater) translateStructWithGetterField(target interface{}, preferred []language.Tag, meta *transl.StructMeta) error {
+func (t *exactTranslator) translateStructWithGetterField(target interface{}, preferred []language.Tag, meta *transl.StructMeta) error {
 	structValue := reflect.Indirect(reflect.ValueOf(target))
 
 	getter := structValue.Field(meta.GetterIdx).Interface().(transl.TranslationsGetter)
@@ -90,13 +90,13 @@ func (t *exactTranslater) translateStructWithGetterField(target interface{}, pre
 	return nil
 }
 
-func (t *exactTranslater) translateField(field reflect.Value, fieldKey string, translations transl.KeyLangValueMap, preferred []language.Tag) {
+func (t *exactTranslator) translateField(field reflect.Value, fieldKey string, translations transl.KeyLangValueMap, preferred []language.Tag) {
 	matcher := t.getMatcher(fieldKey, translations)
 	effectiveLang, _, _ := matcher.Match(preferred...)
 	field.SetString(translations[fieldKey][effectiveLang.String()])
 }
 
-func (t *exactTranslater) getMatcher(fieldKey string, translations transl.KeyLangValueMap) language.Matcher {
+func (t *exactTranslator) getMatcher(fieldKey string, translations transl.KeyLangValueMap) language.Matcher {
 	var langsKey [maxLangs]string
 	var i int
 	var tMap = translations[fieldKey]
@@ -139,7 +139,7 @@ func (t *exactTranslater) getMatcher(fieldKey string, translations transl.KeyLan
 	return matcher
 }
 
-func (t *exactTranslater) getTagByString(s string) *language.Tag {
+func (t *exactTranslator) getTagByString(s string) *language.Tag {
 	t.tagsMutex.RLock()
 	tag, ok := t.tags[s]
 	t.tagsMutex.RUnlock()

@@ -58,7 +58,7 @@ var s = Something{T: transl.KeyLangValueMap{
 }
 
 func main() {
-	t := exact.NewTranslater()
+	t := exact.NewTranslator()
 	t.Translate(&s, []language.Tag{language.Russian})
 	fmt.Printf("Name: %s Element: %s\n", s.Name, s.Element)
 	// Output: Name: Джон Element: water
@@ -88,7 +88,7 @@ t.Translate(&s, preferred)
 
 ## Default language
 
-You can change default (English) language using `SetDefaults` method of `ExactTranslater`
+You can change default (English) language using `SetDefaults` method of `ExactTranslator`
 
 ``` Go
 t.SetDefaults("zh", language.Chinese)

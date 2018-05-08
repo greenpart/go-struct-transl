@@ -58,6 +58,10 @@ func (m KeyLangValueMap) GetTranslations() KeyLangValueMap {
 
 // Scan unmarshals translations from JSON
 func (m *KeyLangValueMap) Scan(value interface{}) error {
+	if value == nil {
+		m = &KeyLangValueMap{}
+		return nil
+	}
 	return json.Unmarshal(value.([]byte), m)
 }
 

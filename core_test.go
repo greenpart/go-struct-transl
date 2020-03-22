@@ -1,9 +1,10 @@
 package transl_test
 
 import (
-	"github.com/greenpart/go-struct-transl"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	transl "github.com/greenpart/go-struct-transl"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestKeyLangValueMapJsonScan(t *testing.T) {

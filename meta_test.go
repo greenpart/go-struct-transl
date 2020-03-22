@@ -2,9 +2,10 @@ package transl
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/text/language"
-	"testing"
 )
 
 type goodStruct struct {

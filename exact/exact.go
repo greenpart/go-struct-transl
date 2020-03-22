@@ -1,10 +1,11 @@
 package exact
 
 import (
-	"github.com/greenpart/go-struct-transl"
-	"golang.org/x/text/language"
 	"reflect"
 	"sync"
+
+	transl "github.com/greenpart/go-struct-transl"
+	"golang.org/x/text/language"
 )
 
 // ExactTranslator assigns best suitable translation for each field separately.
@@ -91,12 +92,12 @@ func (t *exactTranslator) translateStructWithGetterField(target interface{}, pre
 }
 
 func (t *exactTranslator) translateField(field reflect.Value, fieldKey string, translations transl.KeyLangValueMap, preferred []language.Tag) {
-	matcher := t.getMatcher(fieldKey, translations)
-	effectiveLang, _, _ := matcher.Match(preferred...)
-	field.SetString(translations[fieldKey][effectiveLang.String()])
+	matcher, langs := t.getMatcher(fieldKey, translations)
+	_, i, _ := matcher.Match(preferred...)
+	field.SetString(translations[fieldKey][langs[i]])
 }
 
-func (t *exactTranslator) getMatcher(fieldKey string, translations transl.KeyLangValueMap) language.Matcher {
+func (t *exactTranslator) getMatcher(fieldKey string, translations transl.KeyLangValueMap) (language.Matcher, [maxLangs]string) {
 	var langsKey [maxLangs]string
 	var i int
 	var tMap = translations[fieldKey]
@@ -120,7 +121,7 @@ func (t *exactTranslator) getMatcher(fieldKey string, translations transl.KeyLan
 	t.matchersMutex.RUnlock()
 
 	if ok {
-		return matcher
+		return matcher, langsKey
 	}
 
 	// Cache missed. Lets create matcher and add it to cache
@@ -136,7 +137,7 @@ func (t *exactTranslator) getMatcher(fieldKey string, translations transl.KeyLan
 	t.matchers[langsKey] = matcher
 	t.matchersMutex.Unlock()
 
-	return matcher
+	return matcher, langsKey
 }
 
 func (t *exactTranslator) getTagByString(s string) *language.Tag {

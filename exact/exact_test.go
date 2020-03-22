@@ -2,12 +2,13 @@ package exact_test
 
 import (
 	"fmt"
-	"github.com/greenpart/go-struct-transl"
+	"math/rand"
+	"testing"
+
+	transl "github.com/greenpart/go-struct-transl"
 	"github.com/greenpart/go-struct-transl/exact"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/text/language"
-	"math/rand"
-	"testing"
 )
 
 var exTr = exact.NewTranslator()
@@ -96,6 +97,14 @@ func TestMissingAllLangsUseEn(t *testing.T) {
 func TestNoPreferredLang(t *testing.T) {
 	o := genTrObj()
 	exTr.Translate(&o, []language.Tag{})
+
+	assert.Equal(t, "John", o.Name)
+	assert.Equal(t, "water", o.Element)
+}
+
+func TestAlternativeLang(t *testing.T) {
+	o := genTrObj()
+	exTr.Translate(&o, []language.Tag{language.AmericanEnglish})
 
 	assert.Equal(t, "John", o.Name)
 	assert.Equal(t, "water", o.Element)
